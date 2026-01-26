@@ -16,6 +16,19 @@ from langgraph.prebuilt import create_react_agent
 from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 
+from pydantic import BaseModel, Field
+from typing import List
+
+class Source(BaseModel):    
+    """Schema for a source used by the agent"""
+    url: str = Field(description="The URL of the source")
+    
+
+class AgentResponse(BaseModel):
+    """Schema for agent response with answer and sources"""
+    answer: str = Field(description="The agent's answer to the query")
+    sources: List[Source] = Field(default_factory=list, description="List of sources used to generate the answer")
+
 # Configure the search tool with a limit on results
 tools = [TavilySearch(max_results=3)]
 
@@ -27,6 +40,7 @@ agent = create_react_agent(
     model=llm,
     tools=tools,
     prompt="You are a helpful assistant. Always use the search tool to find current information before answering questions.",
+    response_format=AgentResponse,
 )
 
 
@@ -43,19 +57,23 @@ def main():
     # Invoke the agent with the user message
     result = agent.invoke({"messages": [{"role": "user", "content": query}]})
     
-    # Debug: Print all messages to see the full conversation flow
-    print("=== DEBUG: All messages ===")
-    for i, msg in enumerate(result["messages"]):
-        print(f"\n--- Message {i} ({type(msg).__name__}) ---")
-        if hasattr(msg, "content"):
-            content = str(msg.content)
-            print(f"Content: {content[:500] if len(content) > 500 else content}")
-        if hasattr(msg, "tool_calls") and msg.tool_calls:
-            print(f"Tool calls: {msg.tool_calls}")
+    # Print the structured response
+    print("\n=== STRUCTURED RESPONSE ===")
     
-    # Print the final answer
-    print("\n=== FINAL ANSWER ===")
-    print(result["messages"][-1].content)
+    if "structured_response" in result:
+        response: AgentResponse = result["structured_response"]
+        print(f"\n📝 Answer:\n{response.answer}")
+        
+        if response.sources:
+            print(f"\n🔗 Sources ({len(response.sources)}):")
+            for i, source in enumerate(response.sources, 1):
+                print(f"  {i}. {source.url}")
+        else:
+            print("\n🔗 Sources: None provided")
+    else:
+        # Fallback to raw message content if structured response not available
+        print("\n(Structured response not available, showing raw output)")
+        print(result["messages"][-1].content)
 
 
 if __name__ == "__main__":
