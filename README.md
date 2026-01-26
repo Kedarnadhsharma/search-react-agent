@@ -1,6 +1,6 @@
-# ReAct Search Agent - Step by Step Tutorial
+# ReAct Search Agent
 
-This branch demonstrates how to **gradually build a ReAct (Reasoning + Acting) agent** using LangChain. Each commit introduces a new concept, showing you the evolution from a basic agent to a modern, production-ready implementation.
+A ReAct (Reasoning + Acting) agent built with LangGraph and LangChain that uses web search to answer questions with real-time information.
 
 ## What is ReAct?
 
@@ -10,39 +10,7 @@ ReAct is an agent architecture that combines **reasoning** (thinking about what 
 Question → Thought → Action → Observation → ... → Final Answer
 ```
 
-## Commit Progression
-
-Follow the commits in order to learn how to build a ReAct agent step by step:
-
-| # | Commit | Description | Key Concepts |
-|---|--------|-------------|--------------|
-| 1 | `151040b` - **react search agent** | Basic ReAct agent setup using LangChain Classic with Tavily search tool | - Project initialization with `uv`<br>- `create_react_agent` from langchain-classic<br>- Using `hub.pull()` for the standard ReAct prompt<br>- `AgentExecutor` for running the agent loop<br>- Tavily search as the tool |
-| 2 | `b7d3f9c` - **added output parsing** | Add structured output parsing with Pydantic models | - Custom Pydantic schemas (`AgentResponse`, `Source`)<br>- `PydanticOutputParser` for parsing agent output<br>- Custom ReAct prompt with format instructions<br>- Chaining with `RunnableLambda` to extract and parse output |
-| 3 | `cc7b496` - **refactor output parsing to use structured output** | Replace manual parsing with `with_structured_output` | - `llm.with_structured_output()` method<br>- Cleaner approach to structured responses<br>- Simplified chain without manual parser |
-| 4 | `6e20937` - **migrate to langchain v0.1 create_agent API** | Modernize to LangChain v0.1 with new `create_agent` API | - New `create_agent` from `langchain.agents`<br>- Built-in `response_format` parameter<br>- Message-based invocation<br>- Simplified code (~50% reduction) |
-
-## How to Use This Tutorial
-
-### Option 1: Checkout Each Commit
-```bash
-# Start from the first commit
-git checkout 151040b
-
-# Move to the next commit
-git checkout b7d3f9c
-
-# Continue through each commit...
-```
-
-### Option 2: View Diffs Between Commits
-```bash
-# See what changed between commits
-git diff 151040b b7d3f9c  # Basic → Output Parsing
-git diff b7d3f9c cc7b496  # Output Parsing → Structured Output
-git diff cc7b496 6e20937  # Structured Output → Modern API
-```
-
-## Architecture Overview
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -54,61 +22,132 @@ flowchart LR
     F --> G{Done?}
     G -->|No| C
     G -->|Yes| H[Final Answer]
-    H --> I[Structured Response]
 
     subgraph ReAct Loop
         C --> D --> E --> F --> G
     end
 
     style A fill:#e1f5fe
-    style I fill:#c8e6c9
+    style H fill:#c8e6c9
     style ReAct Loop fill:#fff3e0
 ```
 
-### ReAct Loop Explained
+## Features
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant A as Agent LLM
-    participant T as Tool Tavily
+- **LangGraph ReAct Agent**: Uses `create_react_agent` from LangGraph for robust agent execution
+- **Tavily Search Integration**: Real-time web search capabilities
+- **OpenAI GPT-4o-mini**: Fast and cost-effective language model
+- **Debug Mode**: Trace all messages in the agent conversation flow
 
-    U->>A: Question: Find AI engineer jobs
-
-    loop ReAct Loop
-        A->>A: Thought: I need to search for jobs
-        A->>T: Action: search AI engineer langchain bay area
-        T-->>A: Observation: Found 3 job postings...
-        A->>A: Thought: I have enough information
-    end
-
-    A->>U: Final Answer: Here are 3 jobs...
-```
-
-## Getting Started
-
-```bash
-# Install dependencies
-uv sync
-
-# Set up environment variables
-cp .env.example .env
-# Add your OPENAI_API_KEY and TAVILY_API_KEY
-
-# Run the agent
-uv run python main.py
-```
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `main.py` | Main agent implementation |
-| `schemas.py` | Pydantic models for structured output |
-| `prompt.py` | Custom ReAct prompt template (commits 2-3) |
-
-## Requirements
+## Prerequisites
 
 - Python 3.12+
 - OpenAI API key
 - Tavily API key
+
+## Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Kedarnadhsharma/search-react-agent.git
+   cd search-react-agent
+   ```
+
+2. **Install dependencies using uv**
+   ```bash
+   uv sync
+   ```
+
+3. **Set up environment variables**
+   
+   Create a `.env` file in the project root:
+   ```env
+   OPENAI_API_KEY=your-openai-api-key
+   TAVILY_API_KEY=your-tavily-api-key
+   ```
+
+   Get your API keys from:
+   - OpenAI: https://platform.openai.com/api-keys
+   - Tavily: https://tavily.com
+
+## Usage
+
+Run the agent:
+```bash
+uv run python main.py
+```
+
+### Example Query
+
+The agent can answer questions that require real-time information:
+
+```python
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": "What is the weather in Tokyo?"}]}
+)
+```
+
+## Project Structure
+
+| File | Purpose |
+|------|---------|
+| `main.py` | Main agent implementation with debug output |
+| `schemas.py` | Pydantic models for structured output |
+| `prompt.py` | Custom prompt templates |
+| `pyproject.toml` | Project dependencies |
+| `.env` | Environment variables (not committed) |
+
+## How It Works
+
+1. **User Query**: The user asks a question
+2. **Agent Reasoning**: The LLM decides if it needs to use a tool
+3. **Tool Execution**: If needed, the agent calls Tavily Search
+4. **Observation**: The agent receives search results
+5. **Final Answer**: The agent synthesizes information into a response
+
+### Debug Output
+
+The agent includes debug output to trace the conversation flow:
+
+```
+=== DEBUG: All messages ===
+
+--- Message 0 (HumanMessage) ---
+Content: What is weather in Tokyo?
+
+--- Message 1 (AIMessage) ---
+Content: 
+Tool calls: [{'name': 'tavily_search', 'args': {'query': 'current weather Tokyo'}, ...}]
+
+--- Message 2 (ToolMessage) ---
+Content: [search results...]
+
+--- Message 3 (AIMessage) ---
+Content: The current weather in Tokyo is...
+
+=== FINAL ANSWER ===
+The current weather in Tokyo is...
+```
+
+## Dependencies
+
+- `langchain` - LLM application framework
+- `langchain-openai` - OpenAI integration
+- `langchain-tavily` - Tavily search integration
+- `langgraph` - Graph-based agent orchestration
+- `python-dotenv` - Environment variable management
+
+## Troubleshooting
+
+### Error: 401 Unauthorized (Tavily)
+Your Tavily API key is invalid or expired. Get a new key from https://tavily.com
+
+### Error: 429 Rate Limit (OpenAI)
+You've hit OpenAI's rate limits. Wait a few minutes or switch to a different model.
+
+### Deprecation Warning
+The warning about `create_react_agent` being moved is informational only and doesn't affect functionality.
+
+## License
+
+MIT
